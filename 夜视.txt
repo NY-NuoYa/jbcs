@@ -1,0 +1,185 @@
+local Lighting = game:GetService("Lighting")
+local RunService = game:GetService("RunService")
+local Players = game:GetService("Players")
+local LocalPlayer = Players.LocalPlayer
+
+-- 保存原始设置
+local originalBrightness = Lighting.Brightness
+local originalExposureCompensation = Lighting.ExposureCompensation
+local originalClockTime = Lighting.ClockTime
+local originalFogEnd = Lighting.FogEnd
+
+-- 夜视状态变量
+local nightVisionEnabled = true
+local nightVisionConnection
+
+-- 创建适度亮度增强效果
+local function enableNightVision()
+    -- 适度提高亮度和曝光度
+    Lighting.Brightness = 1.8  -- 适度提高整体亮度
+    Lighting.ExposureCompensation = 1.4  -- 再次微调曝光补偿（从1.45降低到1.4）
+    
+    -- 强制设置为白天时间
+    Lighting.ClockTime = 12  -- 中午12点，适中的日照时间
+    
+    -- 适度增加雾效距离
+    if Lighting.FogEnd < 5000 then
+        Lighting.FogEnd = 5000  -- 适度增加雾效结束距离
+    end
+    
+    -- 添加轻微的Bloom效果
+    if not Lighting:FindFirstChild("NightVisionBloom") then
+        local bloom = Instance.new("BloomEffect")
+        bloom.Name = "NightVisionBloom"
+        bloom.Intensity = 0.1   -- 轻微光晕效果
+        bloom.Threshold = 0.85  -- 提高阈值，减少光晕范围
+        bloom.Size = 16         -- 适中的光晕尺寸
+        bloom.Parent = Lighting
+    end
+    
+    -- 添加轻微的颜色校正效果
+    if not Lighting:FindFirstChild("NightVisionColorCorrection") then
+        local colorCorrection = Instance.new("ColorCorrectionEffect")
+        colorCorrection.Name = "NightVisionColorCorrection"
+        colorCorrection.Brightness = 0.12  -- 轻微提高亮度
+        colorCorrection.Contrast = 0.2     -- 适度增强对比度
+        colorCorrection.Saturation = 0     -- 完全保持原始颜色
+        colorCorrection.TintColor = Color3.fromRGB(255, 255, 255)  -- 纯白色，不改变色调
+        colorCorrection.Parent = Lighting
+    end
+    
+    -- 启动更新循环
+    if nightVisionConnection then
+        nightVisionConnection:Disconnect()
+    end
+    
+    nightVisionConnection = RunService.RenderStepped:Connect(function()
+        -- 确保亮度和曝光设置不会被其他脚本覆盖
+        if Lighting.Brightness < 1.6 then
+            Lighting.Brightness = 1.8
+        end
+        
+        if Lighting.ExposureCompensation < 1.3 then
+            Lighting.ExposureCompensation = 1.4  -- 确保曝光补偿保持在1.4
+        end
+        
+        -- 确保时间保持在白天
+        if Lighting.ClockTime < 8 or Lighting.ClockTime > 16 then
+            Lighting.ClockTime = 12  -- 中午12点
+        end
+        
+        -- 确保雾效距离足够远
+        if Lighting.FogEnd < 5000 then
+            Lighting.FogEnd = 5000
+        end
+        
+        -- 确保Bloom效果存在
+        if not Lighting:FindFirstChild("NightVisionBloom") then
+            local bloom = Instance.new("BloomEffect")
+            bloom.Name = "NightVisionBloom"
+            bloom.Intensity = 0.1
+            bloom.Threshold = 0.85
+            bloom.Size = 16
+            bloom.Parent = Lighting
+        end
+        
+        -- 确保颜色校正效果存在
+        if not Lighting:FindFirstChild("NightVisionColorCorrection") then
+            local colorCorrection = Instance.new("ColorCorrectionEffect")
+            colorCorrection.Name = "NightVisionColorCorrection"
+            colorCorrection.Brightness = 0.12
+            colorCorrection.Contrast = 0.2
+            colorCorrection.Saturation = 0
+            colorCorrection.TintColor = Color3.fromRGB(255, 255, 255)
+            colorCorrection.Parent = Lighting
+        end
+    end)
+end
+
+-- 清理函数
+local function disableNightVision()
+    if nightVisionConnection then
+        nightVisionConnection:Disconnect()
+        nightVisionConnection = nil
+    end
+    
+    -- 恢复原始设置
+    Lighting.Brightness = originalBrightness
+    Lighting.ExposureCompensation = originalExposureCompensation
+    Lighting.ClockTime = originalClockTime
+    Lighting.FogEnd = originalFogEnd
+    
+    -- 移除添加的效果
+    local bloom = Lighting:FindFirstChild("NightVisionBloom")
+    if bloom then
+        bloom:Destroy()
+    end
+    
+    local colorCorrection = Lighting:FindFirstChild("NightVisionColorCorrection")
+    if colorCorrection then
+        colorCorrection:Destroy()
+    end
+end
+
+-- 夜视切换函数
+local function toggleNightVision()
+    nightVisionEnabled = not nightVisionEnabled
+    
+    if nightVisionEnabled then
+        enableNightVision()
+        print("夜视功能已启用")
+    else
+        disableNightVision()
+        print("夜视功能已禁用")
+    end
+    
+    return nightVisionEnabled
+end
+
+-- 游戏关闭时自动清理
+game:GetService("Players").LocalPlayer:GetPropertyChangedSignal("Parent"):Connect(function()
+    if not game:GetService("Players").LocalPlayer.Parent then
+        disableNightVision()
+    end
+end)
+
+-- 默认启用夜视
+enableNightVision()
+print("夜视功能已默认启用")
+
+-- 创建简单的夜视切换按钮
+local function createNightVisionToggle()
+    local screenGui = Instance.new("ScreenGui")
+    screenGui.Name = "NightVisionToggleGUI"
+    screenGui.ResetOnSpawn = false
+    screenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+    screenGui.Parent = game.Players.LocalPlayer:WaitForChild("PlayerGui")
+    
+    local toggleButton = Instance.new("TextButton")
+    toggleButton.Name = "NightVisionToggle"
+    toggleButton.Size = UDim2.new(0, 120, 0, 40)
+    toggleButton.Position = UDim2.new(0, 10, 0, 10)
+    toggleButton.BackgroundColor3 = Color3.fromRGB(50, 200, 200)
+    toggleButton.Text = "夜视开启"
+    toggleButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+    toggleButton.TextSize = 16
+    toggleButton.Font = Enum.Font.SourceSansBold
+    toggleButton.AutoButtonColor = true
+    
+    -- 圆角
+    local corner = Instance.new("UICorner")
+    corner.CornerRadius = UDim.new(0.2, 0)
+    corner.Parent = toggleButton
+    
+    toggleButton.MouseButton1Click:Connect(function()
+        local newState = toggleNightVision()
+        toggleButton.BackgroundColor3 = newState and Color3.fromRGB(50, 200, 200) or Color3.fromRGB(100, 100, 150)
+        toggleButton.Text = newState and "夜视开启" or "夜视关闭"
+    end)
+    
+    toggleButton.Parent = screenGui
+    return screenGui
+end
+
+-- 创建夜视切换按钮
+createNightVisionToggle()
