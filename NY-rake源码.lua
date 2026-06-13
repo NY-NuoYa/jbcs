@@ -1,6 +1,5 @@
--- 大牛我错了，不要开我脚本😭
--- 我都公益了，饶我这一次吧！😭
-
+-- 你都开到这里了，我求你不要公开😭
+-- 大家都是混口饭吃，况且我还没收费😭🙏
 -- NuoYa制作
 -- 检测服务器id
 local ALLOWED_PLACE_ID = 2413927524
@@ -530,7 +529,7 @@ local function isInDenseArea(trashPart, nearbyTrash)
     local pos = trashPart.Position
     for _, otherTrash in ipairs(nearbyTrash) do
         if otherTrash ~= trashPart and (pos - otherTrash.Position).Magnitude <= trashConfig.denseRadius then
-            count += 1
+            count = count + 1
             if count >= trashConfig.denseThreshold then
                 return true
             end
@@ -608,7 +607,7 @@ local function updateNearbyTrash()
             highlightTrash(trashPart)
             createTrashLabel(trashPart, distance)
             updateTrashLabel(trashPart, distance)
-            displayCount += 1
+            displayCount = displayCount + 1
         end
     end
 
@@ -975,8 +974,8 @@ local function StartRakeESP()
 
     rakeHeartbeatConnection = RunService.Heartbeat:Connect(function(dt)
 
-        updateTimer += dt
-        lastScanTime += dt
+        updateTimer = updateTimer + dt
+        lastScanTime = lastScanTime + dt
 
         if lastScanTime >= SETTINGS.SCAN_INTERVAL then
             lastScanTime = 0
@@ -1296,7 +1295,7 @@ local function updateFlareGunESP()
                 table.insert(currentItems,part)
                 highlightFlareGun(part)
                 createFlareGunLabel(part,distance)
-                count += 1
+                count = count + 1
             end
         end
     end
@@ -1588,7 +1587,7 @@ table.insert(displayedPositions, representative.Position)
   
 shown[representative] = true  
   
-count += 1  
+count = count + 1  
                 end  
             end  
         end  
