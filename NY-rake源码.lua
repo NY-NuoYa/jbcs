@@ -178,7 +178,7 @@ Tab2:AddToggle({
     end
 })
 -- 无限体力
-local staminaEnabled = false  
+local staminaEnabled = false
 
 Tab2:AddButton({
     Title = "无限体力",
@@ -190,41 +190,72 @@ Tab2:AddButton({
             return
         end
 
-        local ReplicatedStorage = game:GetService("ReplicatedStorage")
+        staminaEnabled = true
+
         local Players = game:GetService("Players")
+        local ReplicatedStorage = game:GetService("ReplicatedStorage")
         local speaker = Players.LocalPlayer
 
-        if not (getconnections and getloadedmodules and hookfunction) then
-            warn("无限体力: 你的 Exploit 不支持此功能 [缺少函数: getconnections, getloadedmodules, hookfunction]")
-            return
-        end
+        local function ApplyInfiniteStamina()
 
-        local M_Hs = {}
-
-        for _, v in ipairs(getconnections(ReplicatedStorage:FindFirstChild("TKSMNA") and ReplicatedStorage.TKSMNA.Event or {})) do
-            if v and v.State then
-                v:Disable()
+            if not staminaEnabled then
+                return
             end
-        end
 
-        for _, v in ipairs(getloadedmodules()) do
-            if v.Name == "M_H" and not table.find(M_Hs, v) then
-                table.insert(M_Hs, v)
-                local success, module = pcall(require, v)
-                if success and module and module.TakeStamina then
-                    local old
-                    old = hookfunction(module.TakeStamina, function(smth, amount)
-                        if amount > 0 then
-                            return old(smth, -2)   -- 消耗体力变为恢复2点
+            if not (getconnections and getloadedmodules and hookfunction) then
+                warn("无限体力: Exploit不支持")
+                return
+            end
+
+            -- 禁用体力事件
+            pcall(function()
+                local event = ReplicatedStorage:FindFirstChild("TKSMNA")
+                if event and event:FindFirstChild("Event") then
+                    for _, v in ipairs(getconnections(event.Event)) do
+                        if v and v.State then
+                            v:Disable()
                         end
-                        return old(smth, amount)
-                    end)
+                    end
+                end
+            end)
+
+            -- Hook模块
+            for _, v in ipairs(getloadedmodules()) do
+                if v.Name == "M_H" then
+
+                    local success, module = pcall(require, v)
+
+                    if success and module and module.TakeStamina and not module.__NY_HOOKED then
+
+                        module.__NY_HOOKED = true
+
+                        local old
+                        old = hookfunction(module.TakeStamina, function(smth, amount)
+
+                            if amount > 0 then
+                                return old(smth, -2)
+                            end
+
+                            return old(smth, amount)
+
+                        end)
+
+                        print("无限体力Hook成功")
+                    end
                 end
             end
         end
 
-        staminaEnabled = true
-        print("无限体力已启用（不可逆）")
+        -- 首次执行
+        ApplyInfiniteStamina()
+
+        -- 死亡重生后重新Hook
+        speaker.CharacterAdded:Connect(function()
+            task.wait(3)
+            ApplyInfiniteStamina()
+        end)
+
+        print("无限体力已启用（支持重生）")
     end
 })
 -- 自瞄
@@ -755,20 +786,65 @@ Tab3:AddToggle({
                 startAttachment = a0
             }
         end
+        local function removePlayerESP(player)
 
+    local data = playerEspCache[player]
+
+    if not data then
+        return
+    end
+
+    pcall(function()
+        if data.highlight then data.highlight:Destroy() end
+        if data.gui then data.gui:Destroy() end
+        if data.beam then data.beam:Destroy() end
+        if data.startAttachment then data.startAttachment:Destroy() end
+    end)
+
+    playerEspCache[player] = nil
+end
         for _, p in ipairs(Players:GetPlayers()) do
-            createPlayerESP(p)
-        end
 
-        Players.PlayerAdded:Connect(function(p)
-            p.CharacterAdded:Connect(function()
-                task.wait(1)
-                if playerEspEnabled then
-                    createPlayerESP(p)
-                end
-            end)
+    createPlayerESP(p)
+
+    if p ~= LocalPlayer then
+
+        p.CharacterAdded:Connect(function()
+
+            task.wait(1)
+
+            if playerEspEnabled then
+
+                removePlayerESP(p)
+                createPlayerESP(p)
+
+            end
+
         end)
 
+    end
+
+end
+
+        Players.PlayerAdded:Connect(function(p)
+
+    p.CharacterAdded:Connect(function()
+
+        task.wait(1)
+
+        if playerEspEnabled then
+
+            removePlayerESP(p)
+            createPlayerESP(p)
+
+        end
+
+    end)
+
+end)
+Players.PlayerRemoving:Connect(function(p)
+    removePlayerESP(p)
+end)
         task.spawn(function()
 
             while playerEspEnabled do
@@ -786,7 +862,12 @@ Tab3:AddToggle({
 
                     for player,data in pairs(playerEspCache) do
 
-                        if player.Character and player.Character.Parent then
+                        if player.Character
+and player.Character.Parent
+and data.root
+and data.root.Parent
+and data.humanoid
+and data.humanoid.Parent then
 
                             local dist = (data.root.Position - myRoot.Position).Magnitude
                             local meters = dist / 3.571
